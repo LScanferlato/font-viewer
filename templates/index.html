@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Font Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .font-preview {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .font-name {
+            font-weight: bold;
+        }
+        .font-sample {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        #search {
+            margin-bottom: 20px;
+            padding: 10px;
+            width: 100%;
+            font-size: 16px;
+        }
+    </style>
+    <script>
+        function filterFonts() {
+            const input = document.getElementById('search').value.toLowerCase();
+            const previews = document.getElementsByClassName('font-preview');
+            for (let preview of previews) {
+                const name = preview.querySelector('.font-name').textContent.toLowerCase();
+                preview.style.display = name.includes(input) ? '' : 'none';
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Font Viewer</h1>
+    <input type="text" id="search" onkeyup="filterFonts()" placeholder="Cerca font per nome...">
+
+    {% for font in fonts %}
+        <div class="font-preview">
+            <p class="font-name">{{ font }}</p>
+            <style>
+                @font-face {
+                    font-family: 'font{{ loop.index }}';
+                    src: url("/fonts/{{ font }}");
+                }
+            </style>
+            <p class="font-sample" style="font-family: 'font{{ loop.index }}';">
+                Esempio di testo con questo font
+            </p>
+        </div>
+    {% endfor %}
+</body>
+</html>
