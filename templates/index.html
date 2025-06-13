@@ -1,94 +1,55 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <title>Font Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
-            background-color: #f9f9f9;
-        }
-        h1 {
-            text-align: center;
-        }
-        form {
-            max-width: 600px;
-            margin: 0 auto 30px auto;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        input[type="text"], select {
-            padding: 10px;
-            font-size: 16px;
-            width: 100%;
-            max-width: 300px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
+            background-color: #f4f4f4;
         }
         .font-preview {
-            background: white;
+            background: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             padding: 20px;
             margin-bottom: 20px;
+            position: relative;
         }
         .font-name {
             font-weight: bold;
-            margin-bottom: 10px;
+            font-size: 18px;
         }
         .font-sample {
+            font-size: 24px;
             margin-top: 10px;
         }
-        .download-button {
+        .controls {
             margin-top: 10px;
-            display: inline-block;
-            background-color: #2196F3;
-            color: white;
-            padding: 8px 12px;
-            text-decoration: none;
-            border-radius: 4px;
         }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            font-weight: bold;
+        .controls button {
+            margin-right: 10px;
+        }
+        .search-bar {
+            margin-bottom: 30px;
         }
     </style>
-    <script>
-        function updatePreviews() {
-            const text = document.getElementById('previewText').value;
-            const size = document.getElementById('fontSize').value;
-            const samples = document.getElementsByClassName('font-sample');
-            for (let sample of samples) {
-                sample.textContent = text || sample.getAttribute('data-font-name');
-                sample.style.fontSize = size + 'px';
-            }
-        }
-    </script>
 </head>
 <body>
     <h1>Font Viewer</h1>
-    <form method="get" action="/">
-        <input type="text" name="query" placeholder="Cerca font per nome..." value="{{ query }}">
-        <input type="text" id="previewText" placeholder="Testo di anteprima personalizzato" oninput="updatePreviews()">
-        <select id="fontSize" onchange="updatePreviews()">
-            <option value="24">24px</option>
-            <option value="32">32px</option>
-            <option value="40">40px</option>
-            <option value="48">48px</option>
-            <option value="60">60px</option>
-        </select>
+    <form method="get" action="/" class="search-bar">
+        <input type="text" name="query" placeholder="Cerca font per nome..." value="{{ query }}" style="padding: 10px; width: 60%;">
         <button type="submit">Cerca</button>
     </form>
+
+    <label for="previewText">Testo di anteprima:</label>
+    <input type="text" id="previewText" value="Anteprima Font" oninput="updatePreviewText()" style="width: 100%; padding: 10px; margin-bottom: 20px;">
+
+    <label for="fontSize">Dimensione del font:</label>
+    <input type="range" id="fontSize" min="12" max="72" value="24" oninput="updateFontSize()" style="width: 100%;">
 
     {% if fonts %}
         {% for font in fonts %}
@@ -100,18 +61,42 @@
                         src: url("/fonts/{{ font }}");
                     }
                 </style>
-                <p class="font-sample" data-font-name="{{ font }}" style="font-family: 'font{{ loop.index }}'; font-size: 24px;">
+                <p class="font-sample" id="sample{{ loop.index }}" style="font-family: 'font{{ loop.index }}';">
                     {{ font }}
                 </p>
-                <a class="download-button" href="/fonts/{{ font }}" download>Scarica Font</a>
+                <div class="controls">
+                    <a href="/fonts/{{ font }}" download>
+                        <button type="button">Scarica Font</button>
+                    </a>
+                    <button onclick="downloadImage('sample{{ loop.index }}')" type="button">Scarica Immagine</button>
+                </div>
             </div>
         {% endfor %}
+        <p style="text-align: center; margin-top: 30px;">Totale font trovati: {{ fonts|length }}</p>
     {% else %}
         <p>Nessun font trovato.</p>
     {% endif %}
 
-    <div class="footer">
-        Totale font trovati: {{ fonts|length }}
-    </div>
+    <script>
+        function updatePreviewText() {
+            const text = document.getElementById('previewText').value;
+            document.querySelectorAll('.font-sample').forEach(el => el.textContent = text);
+        }
+
+        function updateFontSize() {
+            const size = document.getElementById('fontSize').value + 'px';
+            document.querySelectorAll('.font-sample').forEach(el => el.style.fontSize = size);
+        }
+
+        function downloadImage(elementId) {
+            const element = document.getElementById(elementId);
+            html2canvas(element).then(canvas => {
+                const link = document.createElement('a');
+                link.download = elementId + '.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+    </script>
 </body>
 </html>
