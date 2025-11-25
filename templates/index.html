@@ -1,54 +1,149 @@
-from flask import Flask, render_template, send_from_directory, request, jsonify
-import os
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Font Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4; margin:0; }
+    header { text-align:center; margin-bottom:30px; }
+    main { max-width:800px; margin:0 auto; }
+    .font-preview { background:#fff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); padding:20px; margin-bottom:20px; }
+    .font-name { font-weight:bold; font-size:1.1rem; margin-bottom:5px; }
+    .font-sample { font-size:24px; margin-top:10px; }
+    .controls { margin-top:10px; display:flex; gap:10px; }
+    .controls button { background:#007bff; color:#fff; border:none; border-radius:5px; padding:8px 14px; cursor:pointer; font-size:1rem; }
+    .controls button:hover { background:#0056b3; }
+    .search-bar { display:flex; gap:10px; margin-bottom:30px; justify-content:center; }
+    .search-bar input[type="text"] { padding:10px; width:60%; border:1px solid #ccc; border-radius:4px; font-size:1rem; }
+    .search-bar button { padding:10px 18px; }
+    @media (max-width:600px){ main{padding:0 5px;} .search-bar input[type="text"]{width:100%;} }
 
-app = Flask(__name__)
-FONTS_DIR = "fonts_directory"
+    /* Barra di progresso */
+    .progress-container { width:100%; background:#ddd; border-radius:8px; overflow:hidden; margin:20px 0; height:20px; position:relative; }
+    .progress-bar { height:100%; width:0%; background:#28a745; text-align:center; color:#fff; font-size:0.8rem; transition:width 0.3s ease; }
+    .progress-text { margin-top:5px; text-align:center; font-size:0.9rem; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <header><h1>Font Viewer</h1></header>
+  <main>
+    <!-- Ricerca lato server -->
+    <form method="get" action="/" class="search-bar">
+      <input type="text" name="query" placeholder="Cerca font per nome…" value="{{ query|e }}">
+      <button type="submit">Cerca</button>
+    </form>
 
-def list_fonts():
-    fonts = []
-    for root, dirs, files in os.walk(FONTS_DIR):
-        for file in files:
-            if file.lower().endswith(('.ttf', '.otf')):
-                full_path = os.path.join(root, file)
-                relative_path = os.path.relpath(full_path, FONTS_DIR)
-                fonts.append(relative_path)
-    return fonts
+    <!-- Testo anteprima -->
+    <div style="margin-bottom:20px;">
+      <label for="previewText">Testo di anteprima:</label>
+      <input type="text" id="previewText" value="Anteprima Font" oninput="updatePreviewText()" style="width:100%;padding:10px;margin-bottom:10px;">
+    </div>
 
-@app.route("/")
-def index():
-    query = request.args.get("query", "").lower()
-    all_fonts = list_fonts()
+    <!-- Dimensione font -->
+    <div style="margin-bottom:30px;">
+      <label for="fontSize">Dimensione del font:</label>
+      <input type="range" id="fontSize" min="12" max="72" value="24" oninput="updateFontSize()" style="width:100%;">
+      <span id="fontSizeValue">24px</span>
+    </div>
 
-    # Filtra lato server se c'è una query
-    if query:
-        fonts = [f for f in all_fonts if query in f.lower()]
-    else:
-        fonts = all_fonts
+    <!-- Barra di progresso + indicatore numerico -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+    <div class="progress-text" id="progressText">0 / {{ total_fonts }}</div>
 
-    total = len(fonts)   # conta effettivamente quanti sono
-    return render_template("index.html", total_fonts=total, query=query)
+    <!-- Risultati -->
+    <section id="fontResults" aria-label="Risultati font"></section>
+    <p style="text-align:center;margin-top:30px;" id="fontCount"></p>
+  </main>
 
-@app.route("/api/fonts")
-def api_fonts():
-    start = int(request.args.get("start", 0))
-    limit = int(request.args.get("limit", 50))
-    query = request.args.get("query", "").lower()
+  <script>
+    let currentIndex = 0;
+    const batchSize = 50;
+    let totalFonts = {{ total_fonts }};
+    let loading = false;
+    const query = "{{ query|e }}"; // query lato server
 
-    all_fonts = list_fonts()
-    if query:
-        all_fonts = [f for f in all_fonts if query in f.lower()]
+    async function fetchFonts() {
+      if (loading) return;
+      loading = true;
 
-    batch = all_fonts[start:start+limit]
+      const res = await fetch(`/api/fonts?start=${currentIndex}&limit=${batchSize}&query=${encodeURIComponent(query)}`);
+      const data = await res.json();
 
-    return jsonify({
-        "fonts": batch,
-        "total": len(all_fonts),
-        "next_start": start + limit if start + limit < len(all_fonts) else None
-    })
+      const container = document.getElementById('fontResults');
+      data.fonts.forEach((font, i) => {
+        const idx = currentIndex + i + 1;
+        const div = document.createElement('div');
+        div.className = 'font-preview';
+        div.innerHTML = `
+          <p class="font-name">${font}</p>
+          <style>@font-face { font-family: 'font${idx}'; src: url("/fonts/${font}"); }</style>
+          <p class="font-sample" id="sample${idx}" style="font-family:'font${idx}';">Anteprima Font</p>
+          <div class="controls">
+            <a href="/fonts/${font}" download><button type="button">Scarica Font</button></a>
+            <button onclick="downloadImage('sample${idx}')" type="button">Scarica Immagine</button>
+          </div>`;
+        container.appendChild(div);
+      });
 
-@app.route("/fonts/<path:filename>")
-def serve_font(filename):
-    return send_from_directory(FONTS_DIR, filename)
+      currentIndex += batchSize;
+      updateProgress();
+      document.getElementById('fontCount').textContent = `Totale font caricati: ${currentIndex} / ${totalFonts}`;
+      loading = false;
+    }
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    function updateProgress() {
+      const percent = totalFonts === 0 ? 0 : Math.min((currentIndex / totalFonts) * 100, 100).toFixed(1);
+      const bar = document.getElementById('progressBar');
+      bar.style.width = percent + '%';
+      bar.textContent = percent + '%';
+      document.getElementById('progressText').textContent = `${currentIndex} / ${totalFonts}`;
+    }
+
+    function updatePreviewText() {
+      const text = document.getElementById('previewText').value;
+      document.querySelectorAll('.font-sample').forEach(el => el.textContent = text);
+    }
+
+    function updateFontSize() {
+      const size = document.getElementById('fontSize').value + 'px';
+      document.getElementById('fontSizeValue').textContent = size;
+      document.querySelectorAll('.font-sample').forEach(el => el.style.fontSize = size);
+    }
+
+    function downloadImage(elementId) {
+      const element = document.getElementById(elementId);
+      html2canvas(element, {backgroundColor:null}).then(canvas => {
+        const link = document.createElement('a');
+        link.download = elementId + '.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+    // Lazy loading con IntersectionObserver
+    function setupLazyLoading() {
+      const sentinel = document.createElement('div');
+      sentinel.id = 'sentinel';
+      document.querySelector('main').appendChild(sentinel);
+
+      const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) {
+          fetchFonts();
+        }
+      });
+      observer.observe(sentinel);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchFonts();
+      updateFontSize();
+      updatePreviewText();
+      setupLazyLoading();
+    });
+  </script>
+</body>
+</html>
