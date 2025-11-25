@@ -58,19 +58,20 @@
   </main>
 
   <script>
-    const fonts = {{ fonts|tojson }};
-    const batchSize = 50;
     let currentIndex = 0;
+    const batchSize = 50;
+    let totalFonts = {{ total_fonts }};
     let loading = false;
 
-    function renderFonts() {
+    async function fetchFonts() {
       if (loading) return;
       loading = true;
 
-      const container = document.getElementById('fontResults');
-      const slice = fonts.slice(currentIndex, currentIndex + batchSize);
+      const res = await fetch(`/api/fonts?start=${currentIndex}&limit=${batchSize}`);
+      const data = await res.json();
 
-      slice.forEach((font, i) => {
+      const container = document.getElementById('fontResults');
+      data.fonts.forEach((font, i) => {
         const idx = currentIndex + i + 1;
         const div = document.createElement('div');
         div.className = 'font-preview';
@@ -87,12 +88,12 @@
 
       currentIndex += batchSize;
       updateProgress();
-      document.getElementById('fontCount').textContent = `Totale font caricati: ${currentIndex} / ${fonts.length}`;
+      document.getElementById('fontCount').textContent = `Totale font caricati: ${currentIndex} / ${totalFonts}`;
       loading = false;
     }
 
     function updateProgress() {
-      const percent = fonts.length === 0 ? 0 : Math.min((currentIndex / fonts.length) * 100, 100).toFixed(1);
+      const percent = totalFonts === 0 ? 0 : Math.min((currentIndex / totalFonts) * 100, 100).toFixed(1);
       const bar = document.getElementById('progressBar');
       bar.style.width = percent + '%';
       bar.textContent = percent + '%';
@@ -127,14 +128,14 @@
 
       const observer = new IntersectionObserver(entries => {
         if (entries[0].isIntersecting) {
-          renderFonts();
+          fetchFonts();
         }
       });
       observer.observe(sentinel);
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      renderFonts();
+      fetchFonts();
       updateFontSize();
       updatePreviewText();
       setupLazyLoading();
