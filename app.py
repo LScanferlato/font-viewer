@@ -2,7 +2,6 @@ from flask import Flask, render_template, send_from_directory, request, jsonify
 import os
 
 app = Flask(__name__)
-
 FONTS_DIR = "fonts_directory"
 
 def list_fonts():
@@ -17,24 +16,34 @@ def list_fonts():
 
 @app.route("/")
 def index():
-    # La pagina iniziale non passa tutti i font, solo il totale
-    fonts = list_fonts()
-    total = len(fonts)
-    return render_template("index.html", total_fonts=total)
+    query = request.args.get("query", "").lower()
+    all_fonts = list_fonts()
+
+    # Filtra lato server se c'è una query
+    if query:
+        fonts = [f for f in all_fonts if query in f.lower()]
+    else:
+        fonts = all_fonts
+
+    total = len(fonts)   # conta effettivamente quanti sono
+    return render_template("index.html", total_fonts=total, query=query)
 
 @app.route("/api/fonts")
 def api_fonts():
-    """Endpoint per lazy loading: restituisce un batch di font in JSON"""
     start = int(request.args.get("start", 0))
     limit = int(request.args.get("limit", 50))
+    query = request.args.get("query", "").lower()
 
-    fonts = list_fonts()
-    batch = fonts[start:start+limit]
+    all_fonts = list_fonts()
+    if query:
+        all_fonts = [f for f in all_fonts if query in f.lower()]
+
+    batch = all_fonts[start:start+limit]
 
     return jsonify({
         "fonts": batch,
-        "total": len(fonts),
-        "next_start": start + limit if start + limit < len(fonts) else None
+        "total": len(all_fonts),
+        "next_start": start + limit if start + limit < len(all_fonts) else None
     })
 
 @app.route("/fonts/<path:filename>")
