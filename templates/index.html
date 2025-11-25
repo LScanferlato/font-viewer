@@ -19,34 +19,47 @@
     .search-bar input[type="text"] { padding:10px; width:60%; border:1px solid #ccc; border-radius:4px; font-size:1rem; }
     .search-bar button { padding:10px 18px; }
     @media (max-width:600px){ main{padding:0 5px;} .search-bar input[type="text"]{width:100%;} }
+
+    /* Barra di progresso */
+    .progress-container { width:100%; background:#ddd; border-radius:8px; overflow:hidden; margin:20px 0; height:20px; }
+    .progress-bar { height:100%; width:0%; background:#28a745; text-align:center; color:#fff; font-size:0.8rem; transition:width 0.3s ease; }
   </style>
 </head>
 <body>
   <header><h1>Font Viewer</h1></header>
   <main>
+    <!-- Ricerca lato server -->
     <form method="get" action="/" class="search-bar">
-      <input type="text" name="query" placeholder="Cerca font per nome…" value="{{ query | e }}">
+      <input type="text" name="query" placeholder="Cerca font per nome…" value="{{ query|e }}">
       <button type="submit">Cerca</button>
     </form>
 
+    <!-- Testo anteprima -->
     <div style="margin-bottom:20px;">
       <label for="previewText">Testo di anteprima:</label>
       <input type="text" id="previewText" value="Anteprima Font" oninput="updatePreviewText()" style="width:100%;padding:10px;margin-bottom:10px;">
     </div>
 
+    <!-- Dimensione font -->
     <div style="margin-bottom:30px;">
       <label for="fontSize">Dimensione del font:</label>
       <input type="range" id="fontSize" min="12" max="72" value="24" oninput="updateFontSize()" style="width:100%;">
       <span id="fontSizeValue">24px</span>
     </div>
 
+    <!-- Barra di progresso -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+
+    <!-- Risultati -->
     <section id="fontResults" aria-label="Risultati font"></section>
     <p style="text-align:center;margin-top:30px;" id="fontCount"></p>
   </main>
 
   <script>
-    const fonts = {{ fonts|tojson }}; // lista completa lato server
-    const batchSize = 50;             // quanti font caricare per volta
+    const fonts = {{ fonts|tojson }};
+    const batchSize = 50;
     let currentIndex = 0;
     let loading = false;
 
@@ -73,8 +86,16 @@
       });
 
       currentIndex += batchSize;
+      updateProgress();
       document.getElementById('fontCount').textContent = `Totale font caricati: ${currentIndex} / ${fonts.length}`;
       loading = false;
+    }
+
+    function updateProgress() {
+      const percent = fonts.length === 0 ? 0 : Math.min((currentIndex / fonts.length) * 100, 100).toFixed(1);
+      const bar = document.getElementById('progressBar');
+      bar.style.width = percent + '%';
+      bar.textContent = percent + '%';
     }
 
     function updatePreviewText() {
