@@ -25,7 +25,7 @@ def index():
     else:
         fonts = all_fonts
 
-    total = len(fonts)   # conta effettivamente quanti sono
+    total = len(fonts)  # conta effettivamente quanti sono
     return render_template("index.html", total_fonts=total, query=query)
 
 @app.route("/api/fonts")
@@ -46,9 +46,10 @@ def api_fonts():
         "next_start": start + limit if start + limit < len(all_fonts) else None
     })
 
+# ✅ correzione qui: aggiunto <path:filename>
 @app.route("/fonts/<path:filename>")
 def serve_font(filename):
     return send_from_directory(FONTS_DIR, filename)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0
